@@ -55,7 +55,7 @@ class S3FD(nn.Module):
 
         if self.phase == 'test':
             self.softmax = nn.Softmax(dim=-1)
-            self.detect = Detect(cfg)
+            self.detect = Detect.apply
  
 
 
@@ -141,8 +141,8 @@ class S3FD(nn.Module):
             feat += [loc[i].size(1), loc[i].size(2)]
             features_maps += [feat]
 
-        self.priorbox = PriorBox(size, features_maps, cfg)
-        self.priors = Variable(self.priorbox.forward(), volatile=True)
+        self.priorbox = PriorBox.apply
+        self.priors = self.priorbox(size, features_maps, cfg)
 
         loc = torch.cat([o.view(o.size(0), -1) for o in loc], 1)
         conf = torch.cat([o.view(o.size(0), -1) for o in conf], 1)
@@ -153,7 +153,8 @@ class S3FD(nn.Module):
                 loc.view(loc.size(0), -1, 4),                   # loc preds
                 self.softmax(conf.view(conf.size(0), -1,
                                        self.num_classes)),                # conf preds
-                self.priors.type(type(x.data))                  # default boxes
+                self.priors.type(type(x.data)),                  # default boxes
+                cfg
             )
 
         else:
