@@ -81,7 +81,7 @@ def detect(net, img_path, thresh):
         while detections[0, i, j, 0] >= thresh:
             score = detections[0, i, j, 0]
             pt = (detections[0, i, j, 1:] * scale).cpu().numpy()
-            left_up, right_bottom = (pt[0], pt[1]), (pt[2], pt[3])
+            left_up, right_bottom = (int(pt[0]), int(pt[1])), (int(pt[2]), int(pt[3]))
             j += 1
             cv2.rectangle(img, left_up, right_bottom, (0, 0, 255), 2)
             conf = "{:.3f}".format(score)
@@ -96,13 +96,12 @@ def detect(net, img_path, thresh):
 
 def detect_image(net, img_orig, thresh):
     t1 = cv2.getTickCount()
-    
+
     img = cv2.cvtColor(img_orig.copy(), cv2.COLOR_BGR2RGB)
     height, width, _ = img.shape
     max_im_shrink = np.sqrt(
         1700 * 1200 / (img.shape[0] * img.shape[1]))
-    image = cv2.resize(img, None, None, fx=max_im_shrink,
-                      fy=max_im_shrink, interpolation=cv2.INTER_LINEAR)
+    image = cv2.resize(img, None, None, fx=max_im_shrink,fy=max_im_shrink, interpolation=cv2.INTER_LINEAR)
     # image = cv2.resize(img, (640, 640))
     image = cv2.resize(image, None, fx=1/8, fy=1/8)
     # print (image.shape)
@@ -114,7 +113,8 @@ def detect_image(net, img_orig, thresh):
     x = torch.from_numpy(x).unsqueeze(0)
     if use_cuda:
         x = x.cuda()
-    
+
+    net.eval()
     with torch.no_grad():
         y = net(x)
     detections = y.data
@@ -153,6 +153,9 @@ if __name__ == '__main__':
     img_list = [os.path.join(img_path, x)
                 for x in os.listdir(img_path) if x.endswith('jpg')]
 
+    for path in img_list:
+        detect(net,path,args.thresh)
+    """
     vc = cv2.VideoCapture(args.input_video)
 
     i = 0
@@ -164,18 +167,20 @@ if __name__ == '__main__':
         if i%2 == 0:
             continue
         show = img.copy()
-        
+
         list_bbox_tlbr = detect_image(net, img, args.thresh)
 
         for bbox in list_bbox_tlbr:
             t,l,b,r,conf = bbox
-            cv2.rectangle(show, (l,t), (r,b), (0, 0, 255), 2)
+            cv2.rectangle(show, (int(l),int(t)), (int(r),int(b)), (0, 0, 255), 2)
             conf = "{:.2f}".format(conf)
             point = (int(l), int(t - 5))
             cv2.putText(show, conf, point, cv2.FONT_HERSHEY_SIMPLEX,
                        0.6, (0, 255, 0), 1, lineType=cv2.LINE_AA)
 
-        cv2.imshow('show', show)
+        # cv2.imshow('show', show)
+        cv2.imwrite(f'hoge/hoge{i}.png',show)
         key = cv2.waitKey(1)
         if key == 27:
             break
+    """
