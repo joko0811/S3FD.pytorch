@@ -1,4 +1,4 @@
-#-*- coding:utf-8 -*-
+# -*- coding:utf-8 -*-
 
 from __future__ import division
 from __future__ import absolute_import
@@ -11,9 +11,10 @@ import torch.nn.init as init
 import torch.nn.functional as F
 from torch.autograd import Variable
 
-from layers import *
-from data.config import cfg
+from .layers import *
+from .data.config import cfg
 import numpy as np
+
 
 class S3FD(nn.Module):
     """Single Shot Multibox Architecture
@@ -55,9 +56,8 @@ class S3FD(nn.Module):
 
         if self.phase == 'test':
             self.softmax = nn.Softmax(dim=-1)
-            self.detect = Detect.apply
- 
-
+            # self.detect = Detect.apply
+            self.detect = Detect(cfg)
 
     def forward(self, x):
         """Applies network layers and ops on input image(s) x.
@@ -147,14 +147,15 @@ class S3FD(nn.Module):
         loc = torch.cat([o.view(o.size(0), -1) for o in loc], 1)
         conf = torch.cat([o.view(o.size(0), -1) for o in conf], 1)
 
-       
         if self.phase == 'test':
-            output = self.detect(
+            output = self.detect.forward(
                 loc.view(loc.size(0), -1, 4),                   # loc preds
                 self.softmax(conf.view(conf.size(0), -1,
                                        self.num_classes)),                # conf preds
-                self.priors.type(type(x.data)),                  # default boxes
-                cfg
+                self.priors.to(x.device)
+                # default boxes
+                # self.priors.type(type(x.data)),
+                # cfg
             )
 
         else:
@@ -259,7 +260,7 @@ def multibox(vgg, extra_layers, num_classes):
 def build_s3fd(phase, num_classes=2):
     base_, extras_, head_ = multibox(
         vgg(vgg_cfg, 3), add_extras((extras_cfg), 1024), num_classes)
-    
+
     return S3FD(phase, base_, extras_, head_, num_classes)
 
 
@@ -267,4 +268,3 @@ if __name__ == '__main__':
     net = build_s3fd('train', num_classes=2)
     inputs = Variable(torch.randn(4, 3, 640, 640))
     output = net(inputs)
-
