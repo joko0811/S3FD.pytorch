@@ -25,7 +25,7 @@ class Detect:
         self.variance = cfg.VARIANCE
         self.nms_top_k = cfg.NMS_TOP_K
 
-    def forward(self, loc_data, conf_data, prior_data):
+    def forward(self, loc_data, conf_data, prior_data, return_extracted_box=False):
         """
         Args:
             loc_data: (tensor) Loc preds from loc layers
@@ -38,17 +38,19 @@ class Detect:
         num = loc_data.size(0)
         num_priors = prior_data.size(0)
 
-        conf_preds = conf_data.view(
-            num, num_priors, self.num_classes).transpose(2, 1)
-        batch_priors = prior_data.view(-1, num_priors,
-                                       4).expand(num, num_priors, 4)
+        conf_preds = conf_data.view(num, num_priors, self.num_classes).transpose(2, 1)
+        batch_priors = prior_data.view(-1, num_priors, 4).expand(num, num_priors, 4)
         batch_priors = batch_priors.contiguous().view(-1, 4)
 
-        decoded_boxes = decode(loc_data.view(-1, 4),
-                               batch_priors, self.variance)
+        decoded_boxes = decode(loc_data.view(-1, 4), batch_priors, self.variance)
         decoded_boxes = decoded_boxes.view(num, num_priors, 4)
 
         output = torch.zeros(num, self.num_classes, self.top_k, 5)
+
+        if return_extracted_box:
+            ref_priors = batch_priors.view(num, num_priors, 4)
+            # extracted_boxes = torch.zeros(num, self.num_classes, self.top_k, 4)
+            extracted_feat_idx = torch.zeros(num, self.num_classes, self.top_k)
 
         for i in range(num):
             boxes = decoded_boxes[i].clone()
@@ -62,10 +64,22 @@ class Detect:
                     continue
                 l_mask = c_mask.unsqueeze(1).expand_as(boxes)
                 boxes_ = boxes[l_mask].view(-1, 4)
-                ids, count = nms(
-                    boxes_, scores, self.nms_thresh, self.nms_top_k)
+
+                ids, count = nms(boxes_, scores, self.nms_thresh, self.nms_top_k)
                 count = count if count < self.top_k else self.top_k
 
-                output[i, cl, :count] = torch.cat((scores[ids[:count]].unsqueeze(1),
-                                                   boxes_[ids[:count]]), 1)
+                output[i, cl, :count] = torch.cat(
+                    (scores[ids[:count]].unsqueeze(1), boxes_[ids[:count]]), 1
+                )
+                if return_extracted_box:
+                    # Number of features that correspond one-to-one in output and idx
+                    extracted_feat_idx[i, cl, :count] = (
+                        l_mask.all(dim=1).nonzero()[ids[:count]].squeeze(1)
+                    )
+
+                    # extracted_boxes[i, cl, :count] = ref_p[l_mask].view(-1, 4)[
+                    #     ids[:count]
+                    # ]
+        if return_extracted_box:
+            return output, extracted_feat_idx
         return output
