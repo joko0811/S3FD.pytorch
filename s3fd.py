@@ -149,7 +149,20 @@ class S3FD(nn.Module):
         loc = torch.cat([o.view(o.size(0), -1) for o in loc], 1)
         conf = torch.cat([o.view(o.size(0), -1) for o in conf], 1)
 
-        if self.phase == "test" or self.phase == "feat_identificate":
+        if self.phase == "test":
+            output = self.detect.forward(
+                loc.view(loc.size(0), -1, 4),  # loc preds
+                self.softmax(
+                    conf.view(conf.size(0), -1, self.num_classes)
+                ),  # conf preds
+                self.priors.to(x.device),
+                # default boxes
+                # self.priors.type(type(x.data)),
+                # cfg
+                return_extracted_box=False,
+            )
+            return output
+        elif self.phase == "feat_identificate":
             output, extracted_idx = self.detect.forward(
                 loc.view(loc.size(0), -1, 4),  # loc preds
                 self.softmax(
@@ -161,14 +174,14 @@ class S3FD(nn.Module):
                 # cfg
                 return_extracted_box=True,
             )
-
+            return output, extracted_idx
         else:
             output = (
                 loc.view(loc.size(0), -1, 4),
                 conf.view(conf.size(0), -1, self.num_classes),
                 self.priors,
             )
-        return output, extracted_idx
+            return output
 
     def load_weights(self, base_file):
         other, ext = os.path.splitext(base_file)
