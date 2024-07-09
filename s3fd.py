@@ -175,7 +175,7 @@ class S3FD(nn.Module):
                 # cfg
                 return_extracted_box=True,
             )
-            return output, extracted_idx
+            return output, extracted_idx, features_maps
         else:
             output = (
                 loc.view(loc.size(0), -1, 4),
