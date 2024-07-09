@@ -59,7 +59,8 @@ class S3FD(nn.Module):
             # self.detect = Detect.apply
             self.detect = Detect(cfg)
         elif self.phase == "feat_identificate":
-            self.detect = Detect(cfg, return_extracted_box=True)
+            self.softmax = nn.Softmax(dim=-1)
+            self.detect = Detect(cfg)
 
     def forward(self, x):
         """Applies network layers and ops on input image(s) x.
