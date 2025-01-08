@@ -45,12 +45,12 @@ class Detect:
         decoded_boxes = decode(loc_data.view(-1, 4), batch_priors, self.variance)
         decoded_boxes = decoded_boxes.view(num, num_priors, 4)
 
-        output = torch.zeros(num, self.num_classes, self.top_k, 5)
+        output = torch.zeros(num, self.num_classes, self.top_k, 5).to(device=loc_data.device)
 
         if return_extracted_box:
             ref_priors = batch_priors.view(num, num_priors, 4)
             # extracted_boxes = torch.zeros(num, self.num_classes, self.top_k, 4)
-            extracted_feat_idx = torch.zeros(num, self.num_classes, self.top_k)
+            extracted_feat_idx = torch.zeros(num, self.num_classes, self.top_k).to(device=loc_data.device)
 
         for i in range(num):
             boxes = decoded_boxes[i].clone()
